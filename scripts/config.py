@@ -6,7 +6,7 @@ Copy config.example.py if you need to reset these values.
 """
 
 # REQUIRED: Your ElevenLabs API key
-ELEVENLABS_API_KEY = "sk_71deb8ef98e4c08b3cfc8911970e381472a67099a184681f"
+ELEVENLABS_API_KEY = "Your_key_here" #previously held deactivated key
 
 # Voice ID - can be a name (laura, claude, etc.) or raw ElevenLabs voice ID
 # The claude_speak.py script will resolve names to IDs automatically
