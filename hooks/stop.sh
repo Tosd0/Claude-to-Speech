@@ -13,8 +13,11 @@ DEBUG_FILE="/tmp/claude_stop_hook.log"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Path to claude_speak.py
+# Path to claude_speak.py and venv python
 SPEAK_SCRIPT="$PLUGIN_DIR/scripts/claude_speak.py"
+VENV_PYTHON="$PLUGIN_DIR/.venv/bin/python3"
+# Fall back to system python3 if venv doesn't exist
+[ ! -x "$VENV_PYTHON" ] && VENV_PYTHON="python3"
 
 # Debug path resolution
 [ "$DEBUG" = "1" ] && echo "SCRIPT_DIR: $SCRIPT_DIR" >> "$DEBUG_FILE"
@@ -28,58 +31,44 @@ INPUT=$(cat)
 [ "$DEBUG" = "1" ] && echo "=== Stop Hook Fired at $(date) ===" >> "$DEBUG_FILE"
 [ "$DEBUG" = "1" ] && echo "Raw input: $INPUT" >> "$DEBUG_FILE"
 
-# Extract the transcript path from JSON
-TRANSCRIPT_PATH=$(echo "$INPUT" | grep -o '"transcript_path":"[^"]*"' | cut -d'"' -f4)
-
-[ "$DEBUG" = "1" ] && echo "Transcript path: $TRANSCRIPT_PATH" >> "$DEBUG_FILE"
-
-# Read the last assistant message from the transcript
-if [ -f "$TRANSCRIPT_PATH" ]; then
-    # Get the last line (latest message) from the transcript
-    LAST_MESSAGE=$(tail -1 "$TRANSCRIPT_PATH")
-    [ "$DEBUG" = "1" ] && echo "Last message JSON: ${LAST_MESSAGE:0:200}..." >> "$DEBUG_FILE"
-
-    # Extract content from the JSON - content is an array of objects
-    RESPONSE=$(echo "$LAST_MESSAGE" | python3 -c "
+# Extract last_assistant_message directly from the hook input JSON
+RESPONSE=$(echo "$INPUT" | "$VENV_PYTHON" -c "
 import sys, json
 try:
-    msg = json.load(sys.stdin)
-    content = msg.get('message', {}).get('content', [])
-    if isinstance(content, list) and len(content) > 0:
-        # Get the first text block
-        for block in content:
-            if block.get('type') == 'text':
-                print(block.get('text', ''))
-                break
+    data = json.load(sys.stdin)
+    print(data.get('last_assistant_message', ''))
 except:
     pass
 " 2>/dev/null || echo "")
 
-    [ "$DEBUG" = "1" ] && echo "Extracted response length: ${#RESPONSE} chars" >> "$DEBUG_FILE"
-    [ "$DEBUG" = "1" ] && echo "First 200 chars: ${RESPONSE:0:200}" >> "$DEBUG_FILE"
+[ "$DEBUG" = "1" ] && echo "Extracted response length: ${#RESPONSE} chars" >> "$DEBUG_FILE"
+[ "$DEBUG" = "1" ] && echo "First 200 chars: ${RESPONSE:0:200}" >> "$DEBUG_FILE"
 
-    # Prevent duplicate execution using atomic file locking
+if [ -n "$RESPONSE" ]; then
+    : # continue processing
+
+    # Prevent duplicate execution using hash check (macOS compatible)
     LOCK_FILE="/tmp/claude_tts_hook.lock"
-    RESPONSE_HASH=$(echo "$RESPONSE" | md5sum | cut -d' ' -f1)
+    HASH_FILE="/tmp/claude_tts_hook.hash"
+    RESPONSE_HASH=$(echo "$RESPONSE" | md5 -r 2>/dev/null | cut -d' ' -f1 || echo "$RESPONSE" | md5sum 2>/dev/null | cut -d' ' -f1)
 
-    # Use flock for atomic locking - only one process can hold the lock
-    exec 200>"$LOCK_FILE"
-    if ! flock -n 200; then
+    # Use mkdir for atomic locking (works on macOS and Linux)
+    if ! mkdir "$LOCK_FILE.d" 2>/dev/null; then
         [ "$DEBUG" = "1" ] && echo "Another hook instance is processing, skipping" >> "$DEBUG_FILE"
         exit 0
     fi
+    trap 'rmdir "$LOCK_FILE.d" 2>/dev/null' EXIT
 
     # Check if we already processed this exact message
-    LAST_HASH=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+    LAST_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "")
     if [ "$RESPONSE_HASH" = "$LAST_HASH" ]; then
         [ "$DEBUG" = "1" ] && echo "Duplicate message detected (same content hash), skipping" >> "$DEBUG_FILE"
-        flock -u 200
         exit 0
     fi
 
-    echo "$RESPONSE_HASH" > "$LOCK_FILE"
+    echo "$RESPONSE_HASH" > "$HASH_FILE"
 else
-    [ "$DEBUG" = "1" ] && echo "Transcript file not found: $TRANSCRIPT_PATH" >> "$DEBUG_FILE"
+    [ "$DEBUG" = "1" ] && echo "Empty response, nothing to process" >> "$DEBUG_FILE"
     exit 0
 fi
 
@@ -107,7 +96,7 @@ if [ -n "$TTS_TEXT" ]; then
     # Check if speak script exists and is executable
     if [ -x "$SPEAK_SCRIPT" ]; then
         # Call the speak script with the extracted text
-        python3 "$SPEAK_SCRIPT" --conversation "$TTS_TEXT" 2>&1 | while IFS= read -r line; do
+        "$VENV_PYTHON" "$SPEAK_SCRIPT" --conversation "$TTS_TEXT" 2>&1 | while IFS= read -r line; do
             [ "$DEBUG" = "1" ] && echo "TTS output: $line" >> "$DEBUG_FILE"
         done
     else

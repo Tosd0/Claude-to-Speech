@@ -25,18 +25,18 @@ try:
     # Access voices nested under "voices" key
     voices = VOICES_DATA.get("voices", {})
     ELEVENLABS_VOICE = voices.get(ACTIVE_VOICE, {}).get("name", ACTIVE_VOICE)
-    ELEVENLABS_MODEL = voices.get(ACTIVE_VOICE, {}).get("model", "eleven_flash_v2_5")
+    ELEVENLABS_MODEL = voices.get(ACTIVE_VOICE, {}).get("model", "eleven_v3")
     print(f"✅ Loaded from tts_config: Voice={ELEVENLABS_VOICE}, Model={ELEVENLABS_MODEL}")
 except ImportError:
     print("⚠️ Failed to import from config.tts_config. Using environment variables.")
     ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
     ELEVENLABS_VOICE = os.environ.get("ELEVENLABS_VOICE", "L.A.U.R.A.")
-    ELEVENLABS_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_flash_v2_5")
+    ELEVENLABS_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_v3")
 except Exception as e:
     print(f"⚠️ Config error: {e}. Using environment variables.")
     ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
     ELEVENLABS_VOICE = os.environ.get("ELEVENLABS_VOICE", "L.A.U.R.A.")
-    ELEVENLABS_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_flash_v2_5")
+    ELEVENLABS_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_v3")
 
 if not ELEVENLABS_API_KEY:
     print("❌ CRITICAL: ElevenLabs API key not found!")

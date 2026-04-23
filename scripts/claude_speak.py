@@ -91,7 +91,7 @@ except ImportError:
     raw_voice = os.environ.get('CLAUDE_VOICE_ID', 'claude')
     VOICE_ID = get_voice_id(raw_voice)
     SERVER_URL = os.environ.get('TTS_SERVER_URL', '')  # Empty = direct API mode
-    ELEVENLABS_MODEL = os.environ.get('ELEVENLABS_MODEL', 'eleven_flash_v2_5')  # Fast model
+    ELEVENLABS_MODEL = os.environ.get('ELEVENLABS_MODEL', 'eleven_v3')  # Latest model with audio tags support
 
 # TTS Settings
 DEFAULT_TIMEOUT = 10.0
@@ -144,7 +144,8 @@ def clean_text_for_speech(text: str) -> str:
     text = re.sub(r'(\w)\.(\w)', r'\1 dot \2', text)
 
     # Remove problematic symbols while keeping natural punctuation
-    symbols_to_remove = r'[\\|}{[\]/%*#@$^&+=<>~`"()]'
+    # Note: [ ] are preserved for ElevenLabs audio tags like [excited], [whispers], etc.
+    symbols_to_remove = r'[\\|}{/%*#@$^&+=<>~`"()]'
     text = re.sub(symbols_to_remove, ' ', text)
 
     # Handle hyphens intelligently
