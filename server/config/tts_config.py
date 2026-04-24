@@ -26,6 +26,14 @@ except Exception as e:
     VOICES_DATA = {}
 
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
+
+# Legacy fallback: support installations that still use server/config/secret.py
+if not ELEVENLABS_API_KEY:
+    try:
+        from .secret import ELEVENLABS_API_KEY  # noqa: F811
+    except ImportError:
+        pass
+
 if not ELEVENLABS_API_KEY:
     raise ValueError(
         "ELEVENLABS_API_KEY is not set. Copy .env.example to .env and fill in "

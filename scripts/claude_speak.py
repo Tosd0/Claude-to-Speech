@@ -82,11 +82,23 @@ def get_voice_id(voice_input: str) -> str:
     print(f"⚠️  Unknown voice '{voice_input}', using default")
     return VOICE_MAPPINGS["default"]
 
-# Configuration - driven by .env / environment variables
+# Configuration - driven by .env / environment variables, with legacy fallback
+# for installations that still use scripts/config.py from before the migration.
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
 VOICE_ID = get_voice_id(os.environ.get('CLAUDE_VOICE_ID', 'claude'))
 SERVER_URL = os.environ.get('TTS_SERVER_URL', '')  # Empty = direct API mode
 ELEVENLABS_MODEL = os.environ.get('ELEVENLABS_MODEL', 'eleven_flash_v2_5')
+
+if not ELEVENLABS_API_KEY:
+    try:
+        from config import ELEVENLABS_API_KEY as _key, VOICE_ID as _vid, \
+            SERVER_URL as _url, ELEVENLABS_MODEL as _model
+        ELEVENLABS_API_KEY = _key
+        VOICE_ID = _vid
+        SERVER_URL = _url
+        ELEVENLABS_MODEL = _model
+    except ImportError:
+        pass
 
 # TTS Settings
 DEFAULT_TIMEOUT = 10.0

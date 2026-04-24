@@ -93,8 +93,16 @@ else
 fi
 
 # Atomic lock via mkdir (works without flock, e.g. on macOS).
+# If the lock dir is stale (older than 30s, e.g. from a killed process), remove it.
 LOCK_DIR="/tmp/claude_tts_hook.lock.d"
 HASH_FILE="/tmp/claude_tts_hook.hash"
+if [ -d "$LOCK_DIR" ]; then
+    lock_age=$(( $(date +%s) - $(stat -f %m "$LOCK_DIR" 2>/dev/null || stat -c %Y "$LOCK_DIR" 2>/dev/null || echo 0) ))
+    if [ "$lock_age" -gt 30 ]; then
+        [ "$DEBUG" = "1" ] && echo "Removing stale lock dir (age=${lock_age}s)" >> "$DEBUG_FILE"
+        rmdir "$LOCK_DIR" 2>/dev/null
+    fi
+fi
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     [ "$DEBUG" = "1" ] && echo "Another hook instance is processing, skipping" >> "$DEBUG_FILE"
     exit 0
