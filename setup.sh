@@ -67,11 +67,19 @@ echo "✅ Hooks configured"
 echo ""
 
 # Step 4: Sanity-check the config
-echo "🧪 Testing server configuration..."
-if python3 -c "import sys; sys.path.insert(0, 'server'); from config.tts_config import ELEVENLABS_API_KEY; print('✅ Config loads successfully')" 2>/dev/null; then
+echo "🧪 Validating .env ..."
+if "$VENV_DIR/bin/python3" -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, sys
+key = os.environ.get('ELEVENLABS_API_KEY', '')
+if not key or key == 'your_api_key_here':
+    print('⚠️  ELEVENLABS_API_KEY is missing or still a placeholder — edit .env')
+    sys.exit(1)
+print('✅ API key looks good')
+" 2>/dev/null; then
     echo "✅ Configuration validated"
 else
-    echo "⚠️  Configuration validation failed - check .env"
+    echo "⚠️  Configuration validation failed — check .env"
 fi
 echo ""
 
@@ -79,14 +87,16 @@ echo "================================================"
 echo "   Setup Complete!"
 echo "================================================"
 echo ""
-echo "Next steps:"
-echo "1. Activate the virtual environment:"
-echo "   source $VENV_DIR/bin/activate"
+echo "This plugin has two modes (both use the Stop hook):"
 echo ""
-echo "2. Start the TTS server:"
-echo "   python3 server/tts_server.py"
+echo "  Direct API mode (simpler, recommended for single-machine use):"
+echo "    Leave TTS_SERVER_URL empty in .env — the hook calls"
+echo "    ElevenLabs directly. No server process needed."
 echo ""
-echo "3. In Claude Code, run:"
-echo "   /speak"
+echo "  Server mode (shared/cached playback across devices):"
+echo "    Set TTS_SERVER_URL=http://localhost:5001/tts in .env,"
+echo "    then start the server:"
+echo "      source $VENV_DIR/bin/activate"
+echo "      python3 server/tts_server.py"
 echo ""
 echo "For troubleshooting, see INSTALL.md"
