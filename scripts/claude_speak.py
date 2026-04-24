@@ -82,16 +82,11 @@ def get_voice_id(voice_input: str) -> str:
     print(f"⚠️  Unknown voice '{voice_input}', using default")
     return VOICE_MAPPINGS["default"]
 
-# Configuration - can be overridden by config.py or environment variables
-try:
-    from config import ELEVENLABS_API_KEY, VOICE_ID, SERVER_URL, ELEVENLABS_MODEL
-except ImportError:
-    ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
-    # Use the mapping function for voice selection
-    raw_voice = os.environ.get('CLAUDE_VOICE_ID', 'claude')
-    VOICE_ID = get_voice_id(raw_voice)
-    SERVER_URL = os.environ.get('TTS_SERVER_URL', '')  # Empty = direct API mode
-    ELEVENLABS_MODEL = os.environ.get('ELEVENLABS_MODEL', 'eleven_flash_v2_5')  # Fast model
+# Configuration - driven by .env / environment variables
+ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
+VOICE_ID = get_voice_id(os.environ.get('CLAUDE_VOICE_ID', 'claude'))
+SERVER_URL = os.environ.get('TTS_SERVER_URL', '')  # Empty = direct API mode
+ELEVENLABS_MODEL = os.environ.get('ELEVENLABS_MODEL', 'eleven_flash_v2_5')
 
 # TTS Settings
 DEFAULT_TIMEOUT = 10.0
@@ -143,8 +138,10 @@ def clean_text_for_speech(text: str) -> str:
     # Handle dots between text (e.g., "file.txt" -> "file dot txt")
     text = re.sub(r'(\w)\.(\w)', r'\1 dot \2', text)
 
-    # Remove problematic symbols while keeping natural punctuation
-    symbols_to_remove = r'[\\|}{[\]/%*#@$^&+=<>~`"()]'
+    # Remove problematic symbols while keeping natural punctuation.
+    # Square brackets are intentionally preserved so ElevenLabs audio tags
+    # (e.g. [excited], [whispers]) pass through for models that support them.
+    symbols_to_remove = r'[\\|}{/%*#@$^&+=<>~`"()]'
     text = re.sub(symbols_to_remove, ' ', text)
 
     # Handle hyphens intelligently
