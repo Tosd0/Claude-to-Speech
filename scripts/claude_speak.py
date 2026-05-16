@@ -62,20 +62,20 @@ def get_voice_id(voice_input: str) -> str:
             return get_voice_id(env_voice)  # Recursive to handle names
         return VOICE_MAPPINGS["default"]
 
-    # Clean input
-    voice_input = voice_input.lower().strip()
+    voice_input = voice_input.strip()
 
-    # Check if it's a known mapping
-    if voice_input in VOICE_MAPPINGS:
-        return VOICE_MAPPINGS[voice_input]
-
-    # Check if it looks like a voice ID (20+ alphanumeric chars)
+    # ElevenLabs voice IDs are case-sensitive — check the raw form before
+    # lowercasing for mapping lookup.
     if len(voice_input) >= 20 and voice_input.replace("_", "").isalnum():
-        return voice_input  # Assume it's a raw voice ID
+        return voice_input
 
-    # Try partial matching
+    voice_key = voice_input.lower()
+
+    if voice_key in VOICE_MAPPINGS:
+        return VOICE_MAPPINGS[voice_key]
+
     for name, voice_id in VOICE_MAPPINGS.items():
-        if voice_input in name or name in voice_input:
+        if voice_key in name or name in voice_key:
             return voice_id
 
     # Fallback to default
